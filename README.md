@@ -1,6 +1,8 @@
 # Ricordo (Spaced Repetition SRS)
 
 > A personal, 100% free-tier Progressive Web App (PWA) for language learning via Spaced Repetition (SRS), designed to run seamlessly on **Linux desktop** and **iPhone (iOS Safari Home Screen)**.
+>
+> *Totally vibe coded after annoyance at clunky flashcard tools and the steep \$25 price tag of Anki on iOS.*
 
 [![Deploy to GitHub Pages](https://github.com/magennd/ricordo/actions/workflows/deploy.yml/badge.svg)](https://github.com/magennd/ricordo/actions/workflows/deploy.yml)
 **Live Web App:** [https://magennd.github.io/ricordo/](https://magennd.github.io/ricordo/)
@@ -144,3 +146,4 @@ turso db tokens create ricordo-db
 ## License
 
 MIT License. Free and open source for personal language learning.
+
