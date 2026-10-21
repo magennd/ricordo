@@ -116,6 +116,20 @@ export async function unlockVault(
   }
 }
 
+export async function loadStaticVault(): Promise<EncryptedVault | null> {
+  try {
+    const res = await fetch('./vault.json');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.ciphertext && data.salt && data.iv) {
+      return data as EncryptedVault;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function saveVaultToStorage(vault: EncryptedVault) {
   localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault));
 }

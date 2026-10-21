@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Layers, 
   BookOpen, 
@@ -9,9 +9,11 @@ import {
   Moon, 
   Sun, 
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { useApp, type AppView } from '../context/AppContext';
+import { SignInModal } from './SignInModal';
 
 export const Navigation: React.FC = () => {
   const { 
@@ -26,6 +28,8 @@ export const Navigation: React.FC = () => {
     tursoCreds,
     lastSyncTime
   } = useApp();
+
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
 
   const navItems: { view: AppView; label: string; icon: React.ReactNode; badge?: number; badgeColor?: string }[] = [
     { view: 'decks', label: 'Decks', icon: <Layers className="w-5 h-5" /> },
@@ -93,15 +97,15 @@ export const Navigation: React.FC = () => {
 
         {/* Bottom Utility Controls */}
         <div className="pt-4 border-t border-forest-panel/60 space-y-3">
-          {/* Cloud Sync Status */}
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-forest-panel/50 text-xs text-alabaster/70">
-            <div className="flex items-center gap-2 truncate">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${tursoCreds ? 'bg-leaf' : 'bg-sand'}`} />
-              <span className="truncate">
-                {tursoCreds ? (lastSyncTime ? `Synced ${lastSyncTime}` : 'Cloud ready') : 'Local mode'}
-              </span>
-            </div>
-            {tursoCreds && (
+          {/* Cloud Sync Status / Sign In Button */}
+          {tursoCreds ? (
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-forest-panel/50 text-xs text-alabaster/70">
+              <div className="flex items-center gap-2 truncate">
+                <span className="w-2 h-2 rounded-full bg-leaf shrink-0" />
+                <span className="truncate">
+                  {lastSyncTime ? `Synced ${lastSyncTime}` : 'Cloud ready'}
+                </span>
+              </div>
               <button
                 onClick={syncNow}
                 disabled={isSyncing}
@@ -110,8 +114,21 @@ export const Navigation: React.FC = () => {
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-leaf' : ''}`} />
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsSignInOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-forest-panel/80 hover:bg-forest-panel text-xs text-alabaster transition-colors group"
+            >
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-leaf" />
+                <span className="font-semibold">Sign In to Cloud</span>
+              </div>
+              <span className="text-[10px] bg-leaf/20 text-leaf px-1.5 py-0.5 rounded font-mono">
+                Connect
+              </span>
+            </button>
+          )}
 
           {/* Theme Mode Toggle */}
           <button
@@ -137,6 +154,15 @@ export const Navigation: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {!tursoCreds && (
+            <button
+              onClick={() => setIsSignInOpen(true)}
+              className="text-[11px] font-semibold bg-leaf text-forest px-2.5 py-1 rounded-lg flex items-center gap-1"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Sign In</span>
+            </button>
+          )}
           {tursoCreds && (
             <button
               onClick={syncNow}
@@ -156,6 +182,9 @@ export const Navigation: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Sign In Modal */}
+      <SignInModal isOpen={isSignInOpen} onClose={() => setIsSignInOpen(false)} />
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-forest text-alabaster border-t border-forest-panel flex justify-around items-center py-2 px-1 z-40 safe-bottom">
