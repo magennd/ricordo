@@ -81,6 +81,13 @@ export interface SyncItem {
   timestamp: string;
 }
 
+export interface Tombstone {
+  id: string; // e.g. `${table_name}_${record_id}`
+  table_name: 'decks' | 'notes' | 'examples' | 'cards' | 'review_logs';
+  record_id: string;
+  deleted_at: string;
+}
+
 export interface CardWithContext extends Card {
   note: Note;
   examples: Example[];

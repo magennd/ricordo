@@ -316,7 +316,7 @@ export async function updateNote(
 
 export async function deleteNote(noteId: string): Promise<void> {
   const now = new Date().toISOString();
-  await db.transaction('rw', [db.notes, db.examples, db.cards, db.review_logs, db.sync_queue], async () => {
+  await db.transaction('rw', [db.notes, db.examples, db.cards, db.review_logs, db.sync_queue, db.tombstones], async () => {
     const cards = await db.cards.where('note_id').equals(noteId).toArray();
     for (const card of cards) {
       await db.review_logs.where('card_id').equals(card.id).delete();
@@ -328,6 +328,12 @@ export async function deleteNote(noteId: string): Promise<void> {
         record_id: card.id,
         payload: null,
         timestamp: now,
+      });
+      await db.tombstones.put({
+        id: `cards_${card.id}`,
+        table_name: 'cards',
+        record_id: card.id,
+        deleted_at: now,
       });
     }
 
@@ -341,7 +347,79 @@ export async function deleteNote(noteId: string): Promise<void> {
       payload: null,
       timestamp: now,
     });
+    await db.tombstones.put({
+      id: `notes_${noteId}`,
+      table_name: 'notes',
+      record_id: noteId,
+      deleted_at: now,
+    });
   });
+}
+
+export async function deleteDeck(deckId: string): Promise<boolean> {
+  const deck = await db.decks.get(deckId);
+  if (!deck || deck.is_staging === 1) return false;
+
+  const now = new Date().toISOString();
+  await db.transaction('rw', [db.decks, db.notes, db.examples, db.cards, db.review_logs, db.sync_queue, db.tombstones], async () => {
+    const notes = await db.notes.where('deck_id').equals(deckId).toArray();
+    for (const note of notes) {
+      const cards = await db.cards.where('note_id').equals(note.id).toArray();
+      for (const card of cards) {
+        await db.review_logs.where('card_id').equals(card.id).delete();
+        await db.cards.delete(card.id);
+        await db.sync_queue.add({
+          id: crypto.randomUUID(),
+          table: 'cards',
+          action: 'delete',
+          record_id: card.id,
+          payload: null,
+          timestamp: now,
+        });
+        await db.tombstones.put({
+          id: `cards_${card.id}`,
+          table_name: 'cards',
+          record_id: card.id,
+          deleted_at: now,
+        });
+      }
+
+      await db.examples.where('note_id').equals(note.id).delete();
+      await db.notes.delete(note.id);
+      await db.sync_queue.add({
+        id: crypto.randomUUID(),
+        table: 'notes',
+        action: 'delete',
+        record_id: note.id,
+        payload: null,
+        timestamp: now,
+      });
+      await db.tombstones.put({
+        id: `notes_${note.id}`,
+        table_name: 'notes',
+        record_id: note.id,
+        deleted_at: now,
+      });
+    }
+
+    await db.decks.delete(deckId);
+    await db.sync_queue.add({
+      id: crypto.randomUUID(),
+      table: 'decks',
+      action: 'delete',
+      record_id: deckId,
+      payload: null,
+      timestamp: now,
+    });
+    await db.tombstones.put({
+      id: `decks_${deckId}`,
+      table_name: 'decks',
+      record_id: deckId,
+      deleted_at: now,
+    });
+  });
+
+  return true;
 }
 
 export async function getDueCardsForDeck(deckId: string): Promise<CardWithContext[]> {
@@ -486,7 +564,7 @@ export async function undoLastReview(): Promise<boolean> {
     updated_at: now,
   };
 
-  await db.transaction('rw', [db.cards, db.review_logs, db.sync_queue], async () => {
+  await db.transaction('rw', [db.cards, db.review_logs, db.sync_queue, db.tombstones], async () => {
     await db.cards.put(revertedCard);
     await db.review_logs.delete(lastLog.id);
 
@@ -506,6 +584,13 @@ export async function undoLastReview(): Promise<boolean> {
       record_id: lastLog.id,
       payload: null,
       timestamp: now,
+    });
+
+    await db.tombstones.put({
+      id: `review_logs_${lastLog.id}`,
+      table_name: 'review_logs',
+      record_id: lastLog.id,
+      deleted_at: now,
     });
   });
 

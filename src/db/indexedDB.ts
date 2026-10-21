@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Deck, Note, Example, Card, ReviewLog, SyncItem } from '../types/database';
+import type { Deck, Note, Example, Card, ReviewLog, SyncItem, Tombstone } from '../types/database';
 
 export class RicordoDB extends Dexie {
   decks!: Table<Deck, string>;
@@ -8,6 +8,7 @@ export class RicordoDB extends Dexie {
   cards!: Table<Card, string>;
   review_logs!: Table<ReviewLog, string>;
   sync_queue!: Table<SyncItem, string>;
+  tombstones!: Table<Tombstone, string>;
 
   constructor() {
     super('RicordoLocalDB');
@@ -22,6 +23,10 @@ export class RicordoDB extends Dexie {
 
     this.version(2).stores({
       cards: 'id, note_id, deck_id, card_type, due_date, state, is_leech, is_suspended, buried_until, updated_at, [deck_id+due_date]'
+    });
+
+    this.version(3).stores({
+      tombstones: 'id, table_name, record_id, deleted_at'
     });
   }
 }
