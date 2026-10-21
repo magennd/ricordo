@@ -58,7 +58,7 @@
 
 /* Extra bottom clearance for views when mobile bottom navigation bar is present */
 .safe-bottom-nav {
-  padding-bottom: calc(var(--mobile-nav-height, 4rem) + max(env(safe-area-inset-bottom), 1rem) + 1.5rem);
+  padding-bottom: calc(var(--mobile-nav-height, 4rem) + max(env(safe-area-inset-bottom), 1.5rem) + 2.5rem);
 }
 
 @media (min-width: 768px) {
