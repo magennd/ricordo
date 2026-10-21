@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-alabaster: #F6EFEB;
+    --forest-deep: #012615;
+    --leaf-green: #65A603;
+    --coral-terracotta: #E4774F;
+    --sand-muted: #D9C5B8;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Ranade', sans-serif;
+  }
+
+  /* Excon cannot be italicized */
+  .font-display, [class*="font-display"] {
+    font-family: 'Excon', sans-serif;
+    font-style: normal !important;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom scrollbars for a refined look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(1, 38, 21, 0.15);
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(246, 239, 235, 0.15);
+}
+
+/* iOS safe-area utilities */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 1rem);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
