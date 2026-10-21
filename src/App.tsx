@@ -15,7 +15,7 @@ export const AppContent: React.FC = () => {
   const isStudy = currentView === 'study';
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-alabaster dark:bg-forest text-forest dark:text-alabaster font-sans selection:bg-leaf selection:text-white transition-colors duration-200">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col md:flex-row bg-alabaster dark:bg-forest text-forest dark:text-alabaster font-sans selection:bg-leaf selection:text-white transition-colors duration-200">
       {/* Hide desktop sidebar and mobile header/navbar in study mode for distraction-free focus */}
       {!isStudy && <Navigation />}
 

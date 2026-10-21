@@ -95,7 +95,7 @@ export const CardsBrowserView: React.FC = () => {
   });
 
   return (
-    <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6 safe-bottom">
+    <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6 safe-bottom-nav">
       
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-forest/10 dark:border-alabaster/10 pb-4">

@@ -102,7 +102,7 @@ export const DecksView: React.FC = () => {
   const stagingDeck = decks.find(d => d.is_staging === 1);
 
   return (
-    <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-8 safe-bottom">
+    <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-8 safe-bottom-nav">
       
       {/* Top Banner / Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-forest/10 dark:border-alabaster/10 pb-5">
@@ -306,8 +306,8 @@ export const DecksView: React.FC = () => {
 
       {/* New Deck Modal */}
       {isNewDeckModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl p-6 shadow-2xl border border-forest/15 dark:border-alabaster/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/70 backdrop-blur-sm overflow-y-auto safe-top safe-bottom">
+          <div className="w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl p-6 shadow-2xl border border-forest/15 dark:border-alabaster/10 my-auto">
             <h3 className="font-display font-bold text-xl mb-4">Create New Deck</h3>
             <form onSubmit={handleCreateDeck} className="space-y-4">
               <div>

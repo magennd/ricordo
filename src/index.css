@@ -9,6 +9,7 @@
     --leaf-green: #65A603;
     --coral-terracotta: #E4774F;
     --sand-muted: #D9C5B8;
+    --mobile-nav-height: 4rem;
   }
 
   html {
@@ -53,5 +54,25 @@
 
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+/* Extra bottom clearance for views when mobile bottom navigation bar is present */
+.safe-bottom-nav {
+  padding-bottom: calc(var(--mobile-nav-height, 4rem) + max(env(safe-area-inset-bottom), 1rem) + 1.5rem);
+}
+
+@media (min-width: 768px) {
+  .safe-bottom-nav {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* Prevent iOS Safari auto-zoom on form inputs by ensuring at least 16px font-size on mobile */
+@media screen and (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 

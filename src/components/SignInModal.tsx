@@ -122,8 +122,8 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/75 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl shadow-2xl border border-forest/15 dark:border-alabaster/10 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/75 backdrop-blur-sm overflow-y-auto safe-top safe-bottom">
+      <div className="relative w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl shadow-2xl border border-forest/15 dark:border-alabaster/10 overflow-hidden my-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-forest/10 dark:border-alabaster/10 bg-white/50 dark:bg-forest/50">

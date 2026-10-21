@@ -72,7 +72,7 @@ export const LeechesView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6 safe-bottom">
+    <div className="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6 safe-bottom-nav">
       
       {/* Header */}
       <div className="border-b border-forest/10 dark:border-alabaster/10 pb-4">
