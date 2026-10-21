@@ -15,11 +15,16 @@ export class RicordoDB extends Dexie {
       decks: 'id, name, is_staging, created_at, updated_at',
       notes: 'id, deck_id, headword, lemma, lookup_count, updated_at',
       examples: 'id, note_id',
-      cards: 'id, note_id, deck_id, card_type, due_date, state, is_suspended, buried_until, updated_at, [deck_id+due_date]',
+      cards: 'id, note_id, deck_id, card_type, due_date, state, is_leech, is_suspended, buried_until, updated_at, [deck_id+due_date]',
       review_logs: 'id, card_id, reviewed_at',
       sync_queue: 'id, timestamp, table, action'
+    });
+
+    this.version(2).stores({
+      cards: 'id, note_id, deck_id, card_type, due_date, state, is_leech, is_suspended, buried_until, updated_at, [deck_id+due_date]'
     });
   }
 }
 
 export const db = new RicordoDB();
+

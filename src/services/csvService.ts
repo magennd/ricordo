@@ -115,3 +115,74 @@ export async function importCSVData(
 
   return { imported, skippedDuplicates, errors };
 }
+
+export const CSV_TEMPLATE_COLUMNS = [
+  'headword',
+  'definition',
+  'part_of_speech',
+  'collocation_or_particle',
+  'grammar_notes',
+  'tags',
+  'sentence_target',
+  'sentence_native',
+  'cloze_target_word',
+  'cloze_grammar_hint'
+];
+
+export const CSV_SAMPLE_ROWS = [
+  {
+    headword: 'ricordare',
+    definition: 'to remember, to recall',
+    part_of_speech: 'verb',
+    collocation_or_particle: 'ricordarsi di + inf.',
+    grammar_notes: 'Takes essere in pronominal form "ricordarsi"',
+    tags: 'verbs, b1, memory',
+    sentence_target: 'Ti ricordi di chiudere la porta?',
+    sentence_native: 'Do you remember to close the door?',
+    cloze_target_word: 'ricordi',
+    cloze_grammar_hint: 'present tense, 2nd pers. sing.'
+  },
+  {
+    headword: 'rendersi conto',
+    definition: 'to realize, to become aware of',
+    part_of_speech: 'idiomatic verb phrase',
+    collocation_or_particle: 'rendersi conto di',
+    grammar_notes: 'Past participle is "reso conto"',
+    tags: 'idioms, b2',
+    sentence_target: 'Non mi sono reso conto del ritardo.',
+    sentence_native: 'I did not realize the delay.',
+    cloze_target_word: 'reso conto',
+    cloze_grammar_hint: 'past participle with essere'
+  }
+];
+
+export function downloadBlankCSVTemplate() {
+  const content = CSV_TEMPLATE_COLUMNS.join(',') + '\n';
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'ricordo_blank_template.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export function downloadSampleCSVTemplate() {
+  const headers = CSV_TEMPLATE_COLUMNS.join(',');
+  const rows = CSV_SAMPLE_ROWS.map(r => 
+    CSV_TEMPLATE_COLUMNS.map(col => `"${((r as any)[col] || '').replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const content = `${headers}\n${rows}\n`;
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'ricordo_sample_template.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+

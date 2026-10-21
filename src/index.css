@@ -54,3 +54,4 @@
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 1rem);
 }
+

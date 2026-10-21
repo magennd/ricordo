@@ -320,3 +320,4 @@ export const CardsBrowserView: React.FC = () => {
     </div>
   );
 };
+

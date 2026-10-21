@@ -67,25 +67,28 @@ export const StudyView: React.FC = () => {
 
     try {
       await submitCardReview(currentCard.id, rating);
-      await refreshLeechCount();
-      setCanUndo(true);
-      setReviewedCount(prev => prev + 1);
-      setEphemeralSentence('');
-
-      if (currentIndex + 1 < cards.length) {
-        setCurrentIndex(prev => prev + 1);
-        setIsFlipped(false);
-      } else {
-        setSessionCompleted(true);
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#65A603', '#E4774F', '#F6EFEB']
-        });
-      }
     } catch (err) {
       console.error('Error submitting review:', err);
+    }
+
+    // Refresh counters without blocking UI progression
+    refreshLeechCount().catch(console.warn);
+
+    setCanUndo(true);
+    setReviewedCount(prev => prev + 1);
+    setEphemeralSentence('');
+
+    if (currentIndex + 1 < cards.length) {
+      setCurrentIndex(prev => prev + 1);
+      setIsFlipped(false);
+    } else {
+      setSessionCompleted(true);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#65A603', '#E4774F', '#F6EFEB']
+      });
     }
   }, [currentCard, isFlipped, currentIndex, cards.length, refreshLeechCount]);
 
@@ -104,7 +107,7 @@ export const StudyView: React.FC = () => {
         setCurrentIndex(prev => prev - 1);
         setIsFlipped(true);
       }
-      await refreshLeechCount();
+      refreshLeechCount().catch(console.warn);
     }
   }, [canUndo, sessionCompleted, currentIndex, cards.length, refreshLeechCount]);
 
@@ -122,13 +125,23 @@ export const StudyView: React.FC = () => {
           setIsFlipped(true);
         }
       } else if (isFlipped) {
-        if (e.key === '1') handleRate(1);
-        else if (e.key === '2') handleRate(2);
-        else if (e.key === '3') handleRate(3);
-        else if (e.key === '4') handleRate(4);
+        if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
+          e.preventDefault();
+          handleRate(1);
+        } else if (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2') {
+          e.preventDefault();
+          handleRate(2);
+        } else if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
+          e.preventDefault();
+          handleRate(3);
+        } else if (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4') {
+          e.preventDefault();
+          handleRate(4);
+        }
       }
 
-      if (e.key === 'z' || e.key === 'u') {
+      if (e.key === 'z' || e.key === 'u' || e.code === 'KeyZ') {
+        e.preventDefault();
         handleUndo();
       }
     };

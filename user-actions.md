@@ -69,3 +69,4 @@ Then open [http://localhost:5173](http://localhost:5173) in your browser.
    - On GitHub, go to your repository's **Settings** -> **Pages**.
    - Under **Build and deployment > Source**, select **GitHub Actions**.
    - The automated GitHub Actions workflow will build and publish your app automatically.
+

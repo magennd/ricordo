@@ -3,11 +3,25 @@ import {
   UploadCloud, 
   CheckCircle2, 
   RefreshCw, 
-  Table 
+  Table,
+  Download,
+  FileSpreadsheet,
+  Info,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { db } from '../db/indexedDB';
 import type { Deck } from '../types/database';
-import { parseCSVFile, importCSVData, type CSVParseResult, type CSVColumnMapping } from '../services/csvService';
+import { 
+  parseCSVFile, 
+  importCSVData, 
+  downloadBlankCSVTemplate, 
+  downloadSampleCSVTemplate,
+  CSV_TEMPLATE_COLUMNS,
+  CSV_SAMPLE_ROWS,
+  type CSVParseResult, 
+  type CSVColumnMapping 
+} from '../services/csvService';
 import { useApp } from '../context/AppContext';
 
 export const ImportView: React.FC = () => {
@@ -17,6 +31,7 @@ export const ImportView: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVParseResult | null>(null);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [showTemplateGuide, setShowTemplateGuide] = useState(true);
 
   // Column mapping state
   const [mapping, setMapping] = useState<CSVColumnMapping>({
@@ -67,16 +82,16 @@ export const ImportView: React.FC = () => {
         headers.find(h => patterns.some(p => h.toLowerCase().includes(p))) || '';
 
       setMapping({
-        headwordCol: findHeader(['word', 'headword', 'term', 'target', 'italian', 'spanish', 'french', 'front']),
-        definitionCol: findHeader(['def', 'meaning', 'translation', 'english', 'native', 'back']),
-        partOfSpeechCol: findHeader(['pos', 'part of speech', 'type', 'category']),
-        collocationCol: findHeader(['collocation', 'particle', 'preposition']),
-        grammarNotesCol: findHeader(['grammar', 'note', 'inflection']),
-        tagsCol: findHeader(['tag', 'level', 'topic']),
-        exampleTargetCol: findHeader(['example', 'sentence', 'context']),
-        exampleNativeCol: findHeader(['sentence translation', 'example translation', 'native sentence']),
-        clozeTargetWordCol: findHeader(['cloze word', 'target word', 'blank']),
-        clozeGrammarHintCol: findHeader(['cloze hint', 'micro prompt', 'grammar hint']),
+        headwordCol: findHeader(['headword', 'word', 'term', 'target', 'italian', 'spanish', 'french', 'front']),
+        definitionCol: findHeader(['definition', 'def', 'meaning', 'translation', 'english', 'native', 'back']),
+        partOfSpeechCol: findHeader(['part_of_speech', 'pos', 'type', 'category']),
+        collocationCol: findHeader(['collocation_or_particle', 'collocation', 'particle', 'preposition']),
+        grammarNotesCol: findHeader(['grammar_notes', 'grammar', 'note', 'inflection']),
+        tagsCol: findHeader(['tags', 'tag', 'level', 'topic']),
+        exampleTargetCol: findHeader(['sentence_target', 'example', 'sentence', 'context']),
+        exampleNativeCol: findHeader(['sentence_native', 'sentence translation', 'example translation', 'native sentence']),
+        clozeTargetWordCol: findHeader(['cloze_target_word', 'cloze word', 'target word', 'blank']),
+        clozeGrammarHintCol: findHeader(['cloze_grammar_hint', 'cloze hint', 'micro prompt', 'grammar hint']),
       });
     } catch (err) {
       console.error('Failed to parse CSV file:', err);
@@ -116,21 +131,115 @@ export const ImportView: React.FC = () => {
           Import Vocabulary CSV
         </h1>
         <p className="text-sm text-forest/70 dark:text-alabaster/70 mt-1 font-sans">
-          Import bulk word lists from Anki, Excel, Google Sheets, or vocabulary exports with automatic column mapping.
+          Import word lists from spreadsheets or other apps with automatic column mapping and duplicate headword protection.
         </p>
+      </div>
+
+      {/* Template Download & Guide Banner */}
+      <div className="bg-white dark:bg-forest-panel rounded-2xl border border-forest/15 dark:border-alabaster/10 p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-leaf/20 text-leaf flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-display font-bold text-lg text-forest dark:text-alabaster">
+                CSV Template & Column Guide
+              </h2>
+              <p className="text-xs text-forest/60 dark:text-alabaster/60 font-sans">
+                Use our pre-formatted template to quickly prepare your vocabulary in Excel, Google Sheets, or LibreOffice.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={downloadBlankCSVTemplate}
+              className="px-3.5 py-2 rounded-xl bg-forest dark:bg-alabaster text-alabaster dark:text-forest font-semibold text-xs hover:opacity-90 transition-colors flex items-center gap-1.5 shadow-sm"
+              title="Download a clean CSV template with only headers"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Blank Template</span>
+            </button>
+
+            <button
+              onClick={downloadSampleCSVTemplate}
+              className="px-3.5 py-2 rounded-xl border border-forest/20 dark:border-alabaster/20 font-semibold text-xs text-forest dark:text-alabaster hover:bg-forest/5 dark:hover:bg-alabaster/5 transition-colors flex items-center gap-1.5"
+              title="Download a template with sample phrases and cloze examples"
+            >
+              <Download className="w-3.5 h-3.5 text-leaf" />
+              <span>Sample CSV</span>
+            </button>
+
+            <button
+              onClick={() => setShowTemplateGuide(!showTemplateGuide)}
+              className="p-2 text-forest/50 dark:text-alabaster/50 hover:text-forest dark:hover:text-alabaster"
+              aria-label="Toggle template preview"
+            >
+              {showTemplateGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Template Table Preview */}
+        {showTemplateGuide && (
+          <div className="pt-3 border-t border-forest/10 dark:border-alabaster/10 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs text-forest/70 dark:text-alabaster/70 font-sans">
+              <Info className="w-4 h-4 text-leaf shrink-0" />
+              <span>
+                <strong>headword</strong> and <strong>definition</strong> are required. All other columns are optional and enrich your recognition and cloze flashcards.
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-forest/15 dark:border-alabaster/10 bg-alabaster/40 dark:bg-forest/50">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-forest/5 dark:bg-alabaster/5 border-b border-forest/10 dark:border-alabaster/10 text-forest/80 dark:text-alabaster/80 font-mono text-[11px]">
+                  <tr>
+                    {CSV_TEMPLATE_COLUMNS.map((col) => (
+                      <th key={col} className="p-2.5 whitespace-nowrap">
+                        {col}
+                        {(col === 'headword' || col === 'definition') && (
+                          <span className="text-coral ml-0.5">*</span>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-forest/10 dark:divide-alabaster/10">
+                  {CSV_SAMPLE_ROWS.map((row, idx) => (
+                    <tr key={idx}>
+                      <td className="p-2.5 font-display font-semibold text-forest dark:text-alabaster whitespace-nowrap">
+                        {row.headword}
+                      </td>
+                      <td className="p-2.5 font-sans whitespace-nowrap">{row.definition}</td>
+                      <td className="p-2.5 text-forest/60 dark:text-alabaster/60 italic whitespace-nowrap">{row.part_of_speech}</td>
+                      <td className="p-2.5 text-leaf font-medium whitespace-nowrap">{row.collocation_or_particle}</td>
+                      <td className="p-2.5 text-forest/70 dark:text-alabaster/70 italic text-[11px] whitespace-nowrap">{row.grammar_notes}</td>
+                      <td className="p-2.5 text-forest/50 dark:text-alabaster/50 whitespace-nowrap">{row.tags}</td>
+                      <td className="p-2.5 italic text-forest/80 dark:text-alabaster/80 whitespace-nowrap">{row.sentence_target}</td>
+                      <td className="p-2.5 italic text-forest/60 dark:text-alabaster/60 whitespace-nowrap">{row.sentence_native}</td>
+                      <td className="p-2.5 font-mono text-xs text-coral whitespace-nowrap">{row.cloze_target_word}</td>
+                      <td className="p-2.5 italic text-forest/60 dark:text-alabaster/60 text-[11px] whitespace-nowrap">{row.cloze_grammar_hint}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Step 1: Upload or Select File */}
       <div className="bg-white dark:bg-forest-panel rounded-2xl border border-forest/15 dark:border-alabaster/10 p-6 shadow-sm space-y-5">
         <h2 className="font-display font-bold text-lg text-forest dark:text-alabaster flex items-center gap-2">
           <UploadCloud className="w-5 h-5 text-leaf" />
-          <span>1. Select CSV File & Destination Deck</span>
+          <span>Upload CSV File</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-1.5">
-              Target Deck *
+              Destination Study Deck *
             </label>
             <select
               value={selectedDeckId}
@@ -147,7 +256,7 @@ export const ImportView: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-1.5">
-              CSV File (.csv) *
+              Choose File (.csv) *
             </label>
             <input
               type="file"
@@ -172,7 +281,7 @@ export const ImportView: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="font-display font-bold text-lg text-forest dark:text-alabaster flex items-center gap-2">
               <Table className="w-5 h-5 text-leaf" />
-              <span>2. Map CSV Columns to Flashcard Fields</span>
+              <span>Verify Column Mapping</span>
             </h2>
             <label className="flex items-center gap-2 text-xs text-forest/80 dark:text-alabaster/80 font-sans cursor-pointer">
               <input

@@ -66,8 +66,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const refreshLeechCount = async () => {
-    const count = await db.cards.where('is_leech').equals(1).count();
-    setLeechCount(count);
+    try {
+      const count = await db.cards.where('is_leech').equals(1).count();
+      setLeechCount(count);
+    } catch (e) {
+      console.warn('Could not refresh leech count:', e);
+    }
   };
 
   const syncNow = async () => {
@@ -166,3 +170,4 @@ export const useApp = () => {
   }
   return context;
 };
+
