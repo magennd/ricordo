@@ -5,7 +5,8 @@
 > *Totally vibe coded after annoyance at clunky flashcard tools and the steep \$25 price tag of Anki on iOS.*
 
 [![Deploy to GitHub Pages](https://github.com/magennd/ricordo/actions/workflows/deploy.yml/badge.svg)](https://github.com/magennd/ricordo/actions/workflows/deploy.yml)
-**Live Web App:** [https://magennd.github.io/ricordo/](https://magennd.github.io/ricordo/)
+**Live Web App:** [https://magennd.github.io/ricordo/](https://magennd.github.io/ricordo/)  
+📖 **User Guide:** [user-guide.md](user-guide.md)
 
 ---
 
