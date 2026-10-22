@@ -294,7 +294,7 @@ export async function updateNote(
     });
 
     // If deck changed, update cards deck_id
-    if (updates.deck_id && updates.deck_id !== existingNote.deck_id) {
+    if (updates.deck_id !== undefined && updates.deck_id !== existingNote.deck_id) {
       const cards = await db.cards.where('note_id').equals(noteId).toArray();
       for (const card of cards) {
         const updatedCard = { ...card, deck_id: updates.deck_id, updated_at: now };
@@ -780,4 +780,99 @@ export async function getDeckStats(deckId: string): Promise<{
     leechCount,
   };
 }
+
+export async function moveNoteToDeck(noteId: string, targetDeckId: string): Promise<void> {
+  await updateNote(noteId, { deck_id: targetDeckId });
+}
+
+export async function removeNoteFromDeck(noteId: string): Promise<void> {
+  await updateNote(noteId, { deck_id: '' });
+}
+
+export async function copyNoteToDeck(noteId: string, targetDeckId: string): Promise<string | null> {
+  const note = await db.notes.get(noteId);
+  if (!note) return null;
+
+  const examples = await db.examples.where('note_id').equals(noteId).toArray();
+
+  return await createNoteWithCards({
+    deck_id: targetDeckId,
+    headword: note.headword,
+    lemma: note.lemma,
+    part_of_speech: note.part_of_speech,
+    collocation_or_particle: note.collocation_or_particle,
+    definition: note.definition,
+    grammar_notes: note.grammar_notes,
+    tags: note.tags,
+    examples: examples.map(e => ({
+      sentence_target: e.sentence_target,
+      sentence_native: e.sentence_native,
+      cloze_target_word: e.cloze_target_word,
+      cloze_grammar_hint: e.cloze_grammar_hint,
+    })),
+  });
+}
+
+export async function bulkMoveNotesToDeck(noteIds: string[], targetDeckId: string): Promise<number> {
+  const now = new Date().toISOString();
+  let count = 0;
+
+  await db.transaction('rw', [db.notes, db.cards, db.sync_queue], async () => {
+    for (const noteId of noteIds) {
+      const note = await db.notes.get(noteId);
+      if (!note) continue;
+
+      const updatedNote = { ...note, deck_id: targetDeckId, updated_at: now };
+      await db.notes.put(updatedNote);
+      await db.sync_queue.add({
+        id: crypto.randomUUID(),
+        table: 'notes',
+        action: 'update',
+        record_id: noteId,
+        payload: updatedNote,
+        timestamp: now,
+      });
+
+      const cards = await db.cards.where('note_id').equals(noteId).toArray();
+      for (const card of cards) {
+        const updatedCard = { ...card, deck_id: targetDeckId, updated_at: now };
+        await db.cards.put(updatedCard);
+        await db.sync_queue.add({
+          id: crypto.randomUUID(),
+          table: 'cards',
+          action: 'update',
+          record_id: card.id,
+          payload: updatedCard,
+          timestamp: now,
+        });
+      }
+      count++;
+    }
+  });
+
+  return count;
+}
+
+export async function bulkRemoveNotesFromDeck(noteIds: string[]): Promise<number> {
+  return await bulkMoveNotesToDeck(noteIds, '');
+}
+
+export async function bulkCopyNotesToDeck(noteIds: string[], targetDeckId: string): Promise<number> {
+  let count = 0;
+  for (const noteId of noteIds) {
+    const res = await copyNoteToDeck(noteId, targetDeckId);
+    if (res) count++;
+  }
+  return count;
+}
+
+export async function bulkDeleteNotes(noteIds: string[]): Promise<number> {
+  let count = 0;
+  for (const noteId of noteIds) {
+    await deleteNote(noteId);
+    count++;
+  }
+  return count;
+}
+
 
