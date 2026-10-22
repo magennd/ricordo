@@ -17,6 +17,12 @@
     font-family: 'Ranade', sans-serif;
   }
 
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
   /* Excon cannot be italicized */
   .font-display, [class*="font-display"] {
     font-family: 'Excon', sans-serif;
@@ -49,16 +55,18 @@
 
 /* iOS safe-area utilities */
 .safe-top {
-  padding-top: max(env(safe-area-inset-top), 1rem);
+  padding-top: 1rem;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
 }
 
 .safe-bottom {
-  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  padding-bottom: 0.75rem;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* Extra bottom clearance for views when mobile bottom navigation bar is present */
+/* Bottom clearance for view contents above navigation bars */
 .safe-bottom-nav {
-  padding-bottom: calc(var(--mobile-nav-height, 4rem) + max(env(safe-area-inset-bottom), 1.5rem) + 2.5rem);
+  padding-bottom: 2rem;
 }
 
 @media (min-width: 768px) {

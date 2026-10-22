@@ -159,10 +159,18 @@ export const StudyView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[70vh]">
-        <div className="flex flex-col items-center gap-3 text-forest/70 dark:text-alabaster/70">
-          <Clock className="w-8 h-8 animate-spin text-leaf" />
-          <p className="font-display font-medium">Preparing study session...</p>
+      <div className="flex-1 flex flex-col w-full h-full bg-alabaster dark:bg-forest text-forest dark:text-alabaster">
+        {/* Opaque Top Bar for Status Bar / Safe Area */}
+        <header className="w-full bg-forest text-alabaster border-b border-forest-panel shrink-0 safe-top px-4 pb-3 shadow-sm">
+          <div className="max-w-2xl mx-auto w-full flex items-center justify-between text-xs text-alabaster/80">
+            <span className="font-display font-bold text-sm tracking-tight">Ricordo</span>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-3 text-forest/70 dark:text-alabaster/70">
+            <Clock className="w-8 h-8 animate-spin text-leaf" />
+            <p className="font-display font-medium">Preparing study session...</p>
+          </div>
         </div>
       </div>
     );
@@ -171,55 +179,73 @@ export const StudyView: React.FC = () => {
   // No due cards or session completed
   if (cards.length === 0 || sessionCompleted) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-[80vh] text-center max-w-lg mx-auto">
-        <div className="w-16 h-16 rounded-2xl bg-leaf/20 text-leaf flex items-center justify-center mb-5">
-          <CheckCircle2 className="w-10 h-10" />
-        </div>
-        <h2 className="font-display text-3xl font-bold text-forest dark:text-alabaster mb-2">
-          {sessionCompleted
-            ? isReviseAll ? 'Revision Complete!' : 'Session Complete!'
-            : isReviseAll ? 'No Seen Cards Yet' : 'All Caught Up!'}
-        </h2>
-        <p className="text-forest/70 dark:text-alabaster/70 font-sans mb-8 leading-relaxed">
-          {sessionCompleted
-            ? `You reviewed ${reviewedCount} random card${reviewedCount === 1 ? '' : 's'} across your decks. Excellent practice!`
-            : isReviseAll
-              ? 'No reviewed cards found in your active decks. Study some new cards first to unlock the revision pool!'
-              : 'No cards are due for review right now. Come back later or add new vocabulary.'}
-        </p>
+      <div className="flex-1 flex flex-col w-full h-full bg-alabaster dark:bg-forest text-forest dark:text-alabaster">
+        {/* Opaque Top Bar for Status Bar / Safe Area */}
+        <header className="w-full bg-forest text-alabaster border-b border-forest-panel shrink-0 safe-top px-4 pb-3 shadow-sm">
+          <div className="max-w-2xl mx-auto w-full flex items-center justify-between text-xs text-alabaster/80">
+            <button
+              onClick={() => setCurrentView('decks')}
+              className="flex items-center gap-1.5 hover:text-alabaster transition-colors py-1 font-medium"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Decks</span>
+            </button>
+            <span className="font-display font-semibold text-alabaster">
+              {sessionCompleted ? 'Session Complete' : 'Study'}
+            </span>
+          </div>
+        </header>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {isReviseAll && sessionCompleted && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto overflow-y-auto min-h-0 safe-bottom">
+          <div className="w-16 h-16 rounded-2xl bg-leaf/20 text-leaf flex items-center justify-center mb-5">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+          <h2 className="font-display text-3xl font-bold text-forest dark:text-alabaster mb-2">
+            {sessionCompleted
+              ? isReviseAll ? 'Revision Complete!' : 'Session Complete!'
+              : isReviseAll ? 'No Seen Cards Yet' : 'All Caught Up!'}
+          </h2>
+          <p className="text-forest/70 dark:text-alabaster/70 font-sans mb-8 leading-relaxed">
+            {sessionCompleted
+              ? `You reviewed ${reviewedCount} random card${reviewedCount === 1 ? '' : 's'} across your decks. Excellent practice!`
+              : isReviseAll
+                ? 'No reviewed cards found in your active decks. Study some new cards first to unlock the revision pool!'
+                : 'No cards are due for review right now. Come back later or add new vocabulary.'}
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {isReviseAll && sessionCompleted && (
+              <button
+                onClick={() => {
+                  setSessionCompleted(false);
+                  loadCards();
+                }}
+                className="px-5 py-2.5 rounded-xl bg-leaf text-forest font-semibold text-sm hover:bg-leaf-hover transition-colors shadow-sm flex items-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Revise Another Batch</span>
+              </button>
+            )}
+            {canUndo && (
+              <button
+                onClick={handleUndo}
+                className="px-4 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 font-medium text-sm flex items-center gap-2 hover:bg-forest/5 dark:hover:bg-alabaster/5"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Undo Last Review
+              </button>
+            )}
             <button
-              onClick={() => {
-                setSessionCompleted(false);
-                loadCards();
-              }}
-              className="px-5 py-2.5 rounded-xl bg-leaf text-forest font-semibold text-sm hover:bg-leaf-hover transition-colors shadow-sm flex items-center gap-2"
+              onClick={() => setCurrentView('decks')}
+              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm ${
+                isReviseAll && sessionCompleted
+                  ? 'border border-forest/20 dark:border-alabaster/20 text-forest dark:text-alabaster hover:bg-forest/5 dark:hover:bg-alabaster/5'
+                  : 'bg-forest dark:bg-leaf text-alabaster dark:text-forest hover:opacity-90'
+              }`}
             >
-              <RotateCcw className="w-4 h-4" />
-              <span>Revise Another Batch</span>
+              Back to Decks
             </button>
-          )}
-          {canUndo && (
-            <button
-              onClick={handleUndo}
-              className="px-4 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 font-medium text-sm flex items-center gap-2 hover:bg-forest/5 dark:hover:bg-alabaster/5"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Undo Last Review
-            </button>
-          )}
-          <button
-            onClick={() => setCurrentView('decks')}
-            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm ${
-              isReviseAll && sessionCompleted
-                ? 'border border-forest/20 dark:border-alabaster/20 text-forest dark:text-alabaster hover:bg-forest/5 dark:hover:bg-alabaster/5'
-                : 'bg-forest dark:bg-leaf text-alabaster dark:text-forest hover:opacity-90'
-            }`}
-          >
-            Back to Decks
-          </button>
+          </div>
         </div>
       </div>
     );
@@ -273,46 +299,51 @@ export const StudyView: React.FC = () => {
   const progressPercent = Math.round(((currentIndex) / cards.length) * 100);
 
   return (
-    <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4 min-h-screen safe-bottom">
+    <div className="flex-1 flex flex-col w-full h-full min-h-0 bg-alabaster dark:bg-forest text-forest dark:text-alabaster">
       
-      {/* Top Header / Progress Bar */}
-      <div className="w-full mb-4">
-        <div className="flex items-center justify-between mb-2 text-xs font-medium text-forest/70 dark:text-alabaster/70">
-          <button
-            onClick={() => setCurrentView('decks')}
-            className="flex items-center gap-1 hover:text-forest dark:hover:text-alabaster"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{isReviseAll ? 'Leave Revision' : 'Leave Study'}</span>
-          </button>
+      {/* Opaque Top Bar & Header Controls (blocks out iOS notch / status bar overlay) */}
+      <header className="w-full bg-forest text-alabaster border-b border-forest-panel shrink-0 safe-top px-4 pb-3 shadow-sm z-30">
+        <div className="max-w-2xl mx-auto w-full">
+          <div className="flex items-center justify-between mb-2 text-xs font-medium text-alabaster/80">
+            <button
+              onClick={() => setCurrentView('decks')}
+              className="flex items-center gap-1.5 hover:text-alabaster transition-colors py-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{isReviseAll ? 'Leave Revision' : 'Leave Study'}</span>
+            </button>
 
-          <div className="flex items-center gap-2">
-            {isReviseAll && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-leaf/20 text-leaf uppercase tracking-wider">
-                Revise All
+            <div className="flex items-center gap-2">
+              {isReviseAll && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-leaf text-forest uppercase tracking-wider">
+                  Revise All
+                </span>
+              )}
+              <span className="font-display font-medium text-alabaster truncate max-w-[150px] sm:max-w-xs">
+                {currentCard.deckName}
               </span>
-            )}
-            <span className="font-display font-medium text-forest dark:text-alabaster truncate max-w-[150px] sm:max-w-xs">
-              {currentCard.deckName}
-            </span>
-            <span>•</span>
-            <span className="tabular-nums font-semibold text-leaf">
-              {currentIndex + 1} / {cards.length}
-            </span>
+              <span className="text-alabaster/40">•</span>
+              <span className="tabular-nums font-semibold text-leaf">
+                {currentIndex + 1} / {cards.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Segmented Progress Bar */}
+          <div className="w-full h-1.5 bg-forest-panel/80 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-leaf transition-all duration-300 rounded-full"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
         </div>
+      </header>
 
-        {/* Segmented Progress Bar */}
-        <div className="w-full h-1.5 bg-forest/10 dark:bg-alabaster/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-leaf transition-all duration-300 rounded-full"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Main Flashcard Container */}
-      <div className="flex-1 flex flex-col justify-center my-auto">
+      {/* Main Flashcard Container & Rating Controls */}
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-3 overflow-y-auto min-h-0 justify-between safe-bottom">
+        
+        {/* Main Flashcard Container */}
+        <div className="flex-1 flex flex-col justify-center my-auto py-2">
         <div
           onClick={() => !isFlipped && setIsFlipped(true)}
           className={`relative w-full min-h-[340px] rounded-2xl p-7 md:p-9 shadow-md transition-all duration-200 cursor-pointer border ${
@@ -506,7 +537,7 @@ export const StudyView: React.FC = () => {
       </div>
 
       {/* Bottom Rating Controls */}
-      <div className="w-full pt-4 safe-bottom">
+      <div className="w-full pt-3 shrink-0">
         {!isFlipped ? (
           <button
             onClick={() => setIsFlipped(true)}
@@ -582,6 +613,8 @@ export const StudyView: React.FC = () => {
             )}
           </div>
         )}
+      </div>
+
       </div>
 
     </div>

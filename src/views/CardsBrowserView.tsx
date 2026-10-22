@@ -333,7 +333,7 @@ export const CardsBrowserView: React.FC = () => {
           <select
             value={selectedDeckFilter}
             onChange={(e) => setSelectedDeckFilter(e.target.value)}
-            className="w-full md:w-64 px-3 py-2.5 rounded-xl bg-white dark:bg-forest-panel border border-forest/15 dark:border-alabaster/10 text-sm text-forest dark:text-alabaster focus:outline-none focus:ring-2 focus:ring-leaf font-sans font-medium"
+            className="flex-1 min-w-0 md:w-64 px-3 py-2.5 rounded-xl bg-white dark:bg-forest-panel border border-forest/15 dark:border-alabaster/10 text-sm text-forest dark:text-alabaster focus:outline-none focus:ring-2 focus:ring-leaf font-sans font-medium"
           >
             <option value="all">All Decks ({notes.length} total)</option>
             <option value="unassigned">
@@ -599,43 +599,47 @@ export const CardsBrowserView: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 self-end md:self-start shrink-0">
+                  <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-forest/10 dark:border-alabaster/10">
                     {/* Quick deck selector in card view */}
-                    <select
-                      value={unassigned ? '' : note.deck_id}
-                      onChange={(e) => handleInlineDeckChange(note.id, e.target.value)}
-                      className="text-xs font-medium py-1.5 px-2 rounded-lg border border-forest/20 dark:border-alabaster/20 bg-white dark:bg-forest text-forest dark:text-alabaster focus:outline-none focus:ring-1 focus:ring-leaf"
-                      title="Change or assign deck"
-                    >
-                      <option value="">No Deck</option>
-                      {decks.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.name} {d.is_staging ? '(Triage)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 md:flex-initial">
+                      <select
+                        value={unassigned ? '' : note.deck_id}
+                        onChange={(e) => handleInlineDeckChange(note.id, e.target.value)}
+                        className="w-full md:w-44 truncate text-xs font-medium py-1.5 px-2 rounded-lg border border-forest/20 dark:border-alabaster/20 bg-white dark:bg-forest text-forest dark:text-alabaster focus:outline-none focus:ring-1 focus:ring-leaf font-sans"
+                        title="Change or assign deck"
+                      >
+                        <option value="">No Deck</option>
+                        {decks.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} {d.is_staging ? '(Triage)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <button
-                      onClick={() => openCopyModal(note)}
-                      className="p-2 rounded-lg text-forest/70 dark:text-alabaster/70 hover:bg-forest/5 dark:hover:bg-alabaster/5 hover:text-leaf transition-colors"
-                      title="Copy note to another deck"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(note)}
-                      className="p-2 rounded-lg text-forest/70 dark:text-alabaster/70 hover:bg-forest/5 dark:hover:bg-alabaster/5 hover:text-leaf transition-colors"
-                      title="Edit note"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(note.id)}
-                      className="p-2 rounded-lg text-coral hover:bg-coral/10 transition-colors"
-                      title="Delete note and cards"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => openCopyModal(note)}
+                        className="p-1.5 md:p-2 rounded-lg text-forest/70 dark:text-alabaster/70 hover:bg-forest/5 dark:hover:bg-alabaster/5 hover:text-leaf transition-colors"
+                        title="Copy note to another deck"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(note)}
+                        className="p-1.5 md:p-2 rounded-lg text-forest/70 dark:text-alabaster/70 hover:bg-forest/5 dark:hover:bg-alabaster/5 hover:text-leaf transition-colors"
+                        title="Edit note"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(note.id)}
+                        className="p-1.5 md:p-2 rounded-lg text-coral hover:bg-coral/10 transition-colors"
+                        title="Delete note and cards"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 

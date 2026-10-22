@@ -15,6 +15,27 @@ import {
 import { useApp, type AppView } from '../context/AppContext';
 import { SignInModal } from './SignInModal';
 
+const getNavItems = (stagingCount: number, leechCount: number): { view: AppView; label: string; icon: React.ReactNode; badge?: number; badgeColor?: string }[] => [
+  { view: 'decks', label: 'Decks', icon: <Layers className="w-5 h-5" /> },
+  { view: 'cards', label: 'Cards & Notes', icon: <BookOpen className="w-5 h-5" /> },
+  { 
+    view: 'triage', 
+    label: 'Dictionary Triage', 
+    icon: <Inbox className="w-5 h-5" />, 
+    badge: stagingCount,
+    badgeColor: 'bg-leaf text-forest font-semibold'
+  },
+  { view: 'import', label: 'Import CSV', icon: <UploadCloud className="w-5 h-5" /> },
+  { 
+    view: 'leeches', 
+    label: 'Leech Cards', 
+    icon: <AlertOctagon className="w-5 h-5" />, 
+    badge: leechCount,
+    badgeColor: 'bg-coral text-white font-semibold'
+  },
+  { view: 'settings', label: 'Cloud & Vault', icon: <Settings className="w-5 h-5" /> },
+];
+
 export const Navigation: React.FC = () => {
   const { 
     currentView, 
@@ -31,31 +52,12 @@ export const Navigation: React.FC = () => {
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
 
-  const navItems: { view: AppView; label: string; icon: React.ReactNode; badge?: number; badgeColor?: string }[] = [
-    { view: 'decks', label: 'Decks', icon: <Layers className="w-5 h-5" /> },
-    { view: 'cards', label: 'Cards & Notes', icon: <BookOpen className="w-5 h-5" /> },
-    { 
-      view: 'triage', 
-      label: 'Dictionary Triage', 
-      icon: <Inbox className="w-5 h-5" />, 
-      badge: stagingCount,
-      badgeColor: 'bg-leaf text-forest font-semibold'
-    },
-    { view: 'import', label: 'Import CSV', icon: <UploadCloud className="w-5 h-5" /> },
-    { 
-      view: 'leeches', 
-      label: 'Leech Cards', 
-      icon: <AlertOctagon className="w-5 h-5" />, 
-      badge: leechCount,
-      badgeColor: 'bg-coral text-white font-semibold'
-    },
-    { view: 'settings', label: 'Cloud & Vault', icon: <Settings className="w-5 h-5" /> },
-  ];
+  const navItems = getNavItems(stagingCount, leechCount);
 
   return (
     <>
       {/* Desktop Sidebar (Persistent Left #012615) */}
-      <aside className="hidden md:flex flex-col w-64 bg-forest text-alabaster min-h-screen border-r border-forest-panel/50 p-5 select-none shrink-0">
+      <aside className="hidden md:flex flex-col w-64 bg-forest text-alabaster h-full border-r border-forest-panel/50 p-5 select-none shrink-0 overflow-y-auto">
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-2 py-4 mb-4">
           <div className="w-9 h-9 rounded-xl bg-leaf flex items-center justify-center text-forest shadow-sm">
@@ -145,7 +147,7 @@ export const Navigation: React.FC = () => {
       </aside>
 
       {/* Mobile Top Header */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-forest text-alabaster border-b border-forest-panel sticky top-0 z-40 safe-top">
+      <header className="md:hidden shrink-0 flex items-center justify-between px-4 py-3 bg-forest text-alabaster border-b border-forest-panel z-40 safe-top">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-leaf flex items-center justify-center text-forest">
             <Sparkles className="w-4 h-4 fill-current" />
@@ -185,29 +187,35 @@ export const Navigation: React.FC = () => {
 
       {/* Sign In Modal */}
       <SignInModal isOpen={isSignInOpen} onClose={() => setIsSignInOpen(false)} />
-
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-forest text-alabaster border-t border-forest-panel flex justify-around items-center py-2 px-1 z-40 safe-bottom">
-        {navItems.map((item) => {
-          const isActive = currentView === item.view;
-          return (
-            <button
-              key={item.view}
-              onClick={() => setCurrentView(item.view)}
-              className={`relative flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-sans transition-colors ${
-                isActive ? 'text-leaf font-semibold' : 'text-alabaster/70'
-              }`}
-            >
-              {item.icon}
-              <span className="text-[10px]">{item.label.split(' ')[0]}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute top-0 right-1 w-2 h-2 rounded-full bg-coral ring-2 ring-forest" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
     </>
+  );
+};
+
+export const MobileBottomNav: React.FC = () => {
+  const { currentView, setCurrentView, stagingCount, leechCount } = useApp();
+  const navItems = getNavItems(stagingCount, leechCount);
+
+  return (
+    <nav className="md:hidden shrink-0 bg-forest text-alabaster border-t border-forest-panel flex justify-around items-center pt-1.5 pb-2 px-1 z-30 safe-bottom">
+      {navItems.map((item) => {
+        const isActive = currentView === item.view;
+        return (
+          <button
+            key={item.view}
+            onClick={() => setCurrentView(item.view)}
+            className={`relative flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-sans transition-colors ${
+              isActive ? 'text-leaf font-semibold' : 'text-alabaster/70'
+            }`}
+          >
+            {item.icon}
+            <span className="text-[10px]">{item.label.split(' ')[0]}</span>
+            {item.badge !== undefined && item.badge > 0 && (
+              <span className="absolute top-0 right-1 w-2 h-2 rounded-full bg-coral ring-2 ring-forest" />
+            )}
+          </button>
+        );
+      })}
+    </nav>
   );
 };
 
