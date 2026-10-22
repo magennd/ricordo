@@ -11,6 +11,9 @@ interface AppContextType {
   setCurrentView: (view: AppView) => void;
   activeDeckId: string | null;
   setActiveDeckId: (id: string | null) => void;
+  reviseAllLimit: number;
+  setReviseAllLimit: (limit: number) => void;
+  startReviseAll: (limit?: number) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   tursoCreds: TursoCredentials | null;
@@ -29,6 +32,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentView, setCurrentView] = useState<AppView>('decks');
   const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
+  const [reviseAllLimit, setReviseAllLimit] = useState<number>(20);
+
+  const startReviseAll = (limit: number = 20) => {
+    setReviseAllLimit(limit);
+    setActiveDeckId('revise-all');
+    setCurrentView('study');
+  };
   
   // Initialize theme from localStorage or system preference
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -145,6 +155,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentView,
         activeDeckId,
         setActiveDeckId,
+        reviseAllLimit,
+        setReviseAllLimit,
+        startReviseAll,
         theme,
         toggleTheme,
         tursoCreds,

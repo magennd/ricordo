@@ -28,6 +28,10 @@ export class RicordoDB extends Dexie {
     this.version(3).stores({
       tombstones: 'id, table_name, record_id, deleted_at'
     });
+
+    this.version(4).stores({
+      sync_queue: 'id, timestamp, table, action, record_id'
+    });
   }
 }
 

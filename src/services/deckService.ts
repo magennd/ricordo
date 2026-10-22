@@ -32,9 +32,28 @@ export async function ensureDefaultDecks(): Promise<void> {
     };
 
     await db.decks.bulkAdd([stagingDeck, starterDeck]);
+    await db.sync_queue.bulkAdd([
+      {
+        id: crypto.randomUUID(),
+        table: 'decks',
+        action: 'insert',
+        record_id: stagingDeck.id,
+        payload: stagingDeck,
+        timestamp: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        table: 'decks',
+        action: 'insert',
+        record_id: starterDeck.id,
+        payload: starterDeck,
+        timestamp: now,
+      }
+    ]);
 
-    // Add high quality starter notes to Italian Essentials
+    // Add high quality starter notes to Italian Essentials with deterministic IDs
     await createNoteWithCards({
+      id: 'note-starter-ricordare',
       deck_id: starterDeck.id,
       headword: 'ricordare',
       lemma: 'ricordare',
@@ -54,6 +73,7 @@ export async function ensureDefaultDecks(): Promise<void> {
     });
 
     await createNoteWithCards({
+      id: 'note-starter-rendersi-conto',
       deck_id: starterDeck.id,
       headword: 'rendersi conto',
       lemma: 'rendersi conto',
@@ -73,6 +93,7 @@ export async function ensureDefaultDecks(): Promise<void> {
     });
 
     await createNoteWithCards({
+      id: 'note-starter-accorgersi',
       deck_id: starterDeck.id,
       headword: 'accorgersi',
       lemma: 'accorgersi',
@@ -93,6 +114,7 @@ export async function ensureDefaultDecks(): Promise<void> {
 
     // Add a staging note for the user to try the triage approval flow
     await createNoteWithCards({
+      id: 'note-starter-sfumatura',
       deck_id: stagingDeck.id,
       headword: 'sfumatura',
       lemma: 'sfumatura',
@@ -116,6 +138,7 @@ export async function ensureDefaultDecks(): Promise<void> {
 }
 
 export async function createNoteWithCards(params: {
+  id?: string;
   deck_id: string;
   headword: string;
   lemma?: string;
@@ -135,7 +158,7 @@ export async function createNoteWithCards(params: {
   }>;
 }): Promise<string> {
   const now = new Date().toISOString();
-  const noteId = crypto.randomUUID();
+  const noteId = params.id || crypto.randomUUID();
 
   const note: Note = {
     id: noteId,
@@ -156,10 +179,10 @@ export async function createNoteWithCards(params: {
 
   const examplesList: Example[] = [];
   if (params.examples && params.examples.length > 0) {
-    for (const ex of params.examples) {
+    params.examples.forEach((ex, idx) => {
       if (ex.sentence_target.trim()) {
         examplesList.push({
-          id: crypto.randomUUID(),
+          id: params.id ? `${params.id}-example-${idx}` : crypto.randomUUID(),
           note_id: noteId,
           sentence_target: ex.sentence_target.trim(),
           sentence_native: ex.sentence_native?.trim(),
@@ -167,7 +190,7 @@ export async function createNoteWithCards(params: {
           cloze_grammar_hint: ex.cloze_grammar_hint?.trim(),
         });
       }
-    }
+    });
   }
 
   // Generate cards for this note:
@@ -180,7 +203,7 @@ export async function createNoteWithCards(params: {
   }
 
   const cardsList: Card[] = cardTypes.map((card_type) => ({
-    id: crypto.randomUUID(),
+    id: params.id ? `${params.id}-card-${card_type}` : crypto.randomUUID(),
     note_id: noteId,
     deck_id: params.deck_id,
     card_type,
@@ -622,6 +645,103 @@ export async function toggleSuspendCard(cardId: string): Promise<boolean> {
 
 export async function approveStagingNote(noteId: string, targetDeckId: string): Promise<void> {
   await updateNote(noteId, { deck_id: targetDeckId });
+}
+
+export async function updateDeck(
+  deckId: string,
+  updates: Partial<Omit<Deck, 'id' | 'created_at'>>
+): Promise<void> {
+  const deck = await db.decks.get(deckId);
+  if (!deck) return;
+
+  const now = new Date().toISOString();
+  const updatedDeck: Deck = {
+    ...deck,
+    ...updates,
+    updated_at: now,
+  };
+
+  await db.transaction('rw', [db.decks, db.sync_queue], async () => {
+    await db.decks.put(updatedDeck);
+    await db.sync_queue.add({
+      id: crypto.randomUUID(),
+      table: 'decks',
+      action: 'update',
+      record_id: deckId,
+      payload: updatedDeck,
+      timestamp: now,
+    });
+  });
+}
+
+export async function getReviseAllCards(limit: number = 20): Promise<CardWithContext[]> {
+  const activeDecks = await db.decks.where('is_staging').equals(0).toArray();
+  const activeDeckMap = new Map(activeDecks.map(d => [d.id, d.name]));
+  const activeDeckIds = new Set(activeDecks.map(d => d.id));
+
+  const allCards = await db.cards.toArray();
+  // Filter for seen cards in active study decks
+  const seenCards = allCards.filter(card => {
+    if (card.is_suspended === 1) return false;
+    if (!activeDeckIds.has(card.deck_id)) return false;
+    // Seen card: has been reviewed at least once or state is learning/review/relearning
+    return card.reps > 0 || card.state !== 0 || Boolean(card.last_review);
+  });
+
+  if (seenCards.length === 0) return [];
+
+  // Shuffle using Fisher-Yates
+  const shuffled = [...seenCards];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // To maximize vocabulary breadth, prioritize picking at most one card per note first
+  const seenNotes = new Set<string>();
+  const primaryCards: Card[] = [];
+  const secondaryCards: Card[] = [];
+
+  for (const card of shuffled) {
+    if (!seenNotes.has(card.note_id)) {
+      seenNotes.add(card.note_id);
+      primaryCards.push(card);
+    } else {
+      secondaryCards.push(card);
+    }
+  }
+
+  // If limit <= 0, return all
+  const targetCards = limit > 0
+    ? [...primaryCards, ...secondaryCards].slice(0, limit)
+    : [...primaryCards, ...secondaryCards];
+
+  // Populate context (Note, Examples, Deck name)
+  const result: CardWithContext[] = [];
+  for (const card of targetCards) {
+    const note = await db.notes.get(card.note_id);
+    if (!note) continue;
+    const examples = await db.examples.where('note_id').equals(card.note_id).toArray();
+    result.push({
+      ...card,
+      note,
+      examples,
+      deckName: activeDeckMap.get(card.deck_id) || 'General',
+    });
+  }
+
+  return result;
+}
+
+export async function getSeenCardsCount(): Promise<number> {
+  const activeDecks = await db.decks.where('is_staging').equals(0).toArray();
+  const activeDeckIds = new Set(activeDecks.map(d => d.id));
+  const allCards = await db.cards.toArray();
+  return allCards.filter(card => {
+    if (card.is_suspended === 1) return false;
+    if (!activeDeckIds.has(card.deck_id)) return false;
+    return card.reps > 0 || card.state !== 0 || Boolean(card.last_review);
+  }).length;
 }
 
 export async function getDeckStats(deckId: string): Promise<{

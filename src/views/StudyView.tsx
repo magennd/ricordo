@@ -11,12 +11,12 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getDueCardsForDeck, submitCardReview, undoLastReview } from '../services/deckService';
+import { getDueCardsForDeck, getReviseAllCards, submitCardReview, undoLastReview } from '../services/deckService';
 import { calculateNextIntervals } from '../services/fsrsService';
 import type { CardWithContext, Rating, Example } from '../types/database';
 
 export const StudyView: React.FC = () => {
-  const { activeDeckId, setCurrentView, refreshLeechCount } = useApp();
+  const { activeDeckId, setCurrentView, refreshLeechCount, reviseAllLimit } = useApp();
   const [cards, setCards] = useState<CardWithContext[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -25,23 +25,30 @@ export const StudyView: React.FC = () => {
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
 
+  const isReviseAll = activeDeckId === 'revise-all';
+
   // Ephemeral Active Recall: Force Sentence Creation
   const [enableRecallPrompt, setEnableRecallPrompt] = useState(false);
   const [ephemeralSentence, setEphemeralSentence] = useState('');
 
-  // Load due cards
+  // Load cards (either due deck cards or random seen cards for revise all)
   const loadCards = useCallback(async () => {
     if (!activeDeckId) {
       setCurrentView('decks');
       return;
     }
     setIsLoading(true);
-    const dueCards = await getDueCardsForDeck(activeDeckId);
-    setCards(dueCards);
+    let sessionCards: CardWithContext[] = [];
+    if (activeDeckId === 'revise-all') {
+      sessionCards = await getReviseAllCards(reviseAllLimit);
+    } else {
+      sessionCards = await getDueCardsForDeck(activeDeckId);
+    }
+    setCards(sessionCards);
     setCurrentIndex(0);
     setIsFlipped(false);
     setIsLoading(false);
-  }, [activeDeckId, setCurrentView]);
+  }, [activeDeckId, setCurrentView, reviseAllLimit]);
 
   useEffect(() => {
     loadCards();
@@ -169,15 +176,31 @@ export const StudyView: React.FC = () => {
           <CheckCircle2 className="w-10 h-10" />
         </div>
         <h2 className="font-display text-3xl font-bold text-forest dark:text-alabaster mb-2">
-          {sessionCompleted ? 'Session Complete!' : 'All Caught Up!'}
+          {sessionCompleted
+            ? isReviseAll ? 'Revision Complete!' : 'Session Complete!'
+            : isReviseAll ? 'No Seen Cards Yet' : 'All Caught Up!'}
         </h2>
         <p className="text-forest/70 dark:text-alabaster/70 font-sans mb-8 leading-relaxed">
           {sessionCompleted
-            ? `You reviewed ${reviewedCount} card${reviewedCount === 1 ? '' : 's'} in this session. Excellent focus!`
-            : 'No cards are due for review right now. Come back later or add new vocabulary.'}
+            ? `You reviewed ${reviewedCount} random card${reviewedCount === 1 ? '' : 's'} across your decks. Excellent practice!`
+            : isReviseAll
+              ? 'No reviewed cards found in your active decks. Study some new cards first to unlock the revision pool!'
+              : 'No cards are due for review right now. Come back later or add new vocabulary.'}
         </p>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {isReviseAll && sessionCompleted && (
+            <button
+              onClick={() => {
+                setSessionCompleted(false);
+                loadCards();
+              }}
+              className="px-5 py-2.5 rounded-xl bg-leaf text-forest font-semibold text-sm hover:bg-leaf-hover transition-colors shadow-sm flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Revise Another Batch</span>
+            </button>
+          )}
           {canUndo && (
             <button
               onClick={handleUndo}
@@ -189,7 +212,11 @@ export const StudyView: React.FC = () => {
           )}
           <button
             onClick={() => setCurrentView('decks')}
-            className="px-6 py-2.5 rounded-xl bg-forest dark:bg-leaf text-alabaster dark:text-forest font-semibold text-sm hover:opacity-90 transition-colors shadow-sm"
+            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm ${
+              isReviseAll && sessionCompleted
+                ? 'border border-forest/20 dark:border-alabaster/20 text-forest dark:text-alabaster hover:bg-forest/5 dark:hover:bg-alabaster/5'
+                : 'bg-forest dark:bg-leaf text-alabaster dark:text-forest hover:opacity-90'
+            }`}
           >
             Back to Decks
           </button>
@@ -256,11 +283,16 @@ export const StudyView: React.FC = () => {
             className="flex items-center gap-1 hover:text-forest dark:hover:text-alabaster"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Leave Study</span>
+            <span>{isReviseAll ? 'Leave Revision' : 'Leave Study'}</span>
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="font-display font-medium text-forest dark:text-alabaster">
+            {isReviseAll && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-leaf/20 text-leaf uppercase tracking-wider">
+                Revise All
+              </span>
+            )}
+            <span className="font-display font-medium text-forest dark:text-alabaster truncate max-w-[150px] sm:max-w-xs">
               {currentCard.deckName}
             </span>
             <span>•</span>

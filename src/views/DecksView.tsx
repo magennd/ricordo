@@ -4,12 +4,15 @@ import {
   Plus, 
   Inbox, 
   ChevronRight, 
-  FolderPlus
+  FolderPlus,
+  Shuffle,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { db } from '../db/indexedDB';
 import type { Deck, Note } from '../types/database';
-import { getDeckStats } from '../services/deckService';
+import { getDeckStats, getSeenCardsCount, updateDeck, deleteDeck } from '../services/deckService';
 import { NoteModal } from '../components/NoteModal';
 
 interface DeckWithStats extends Deck {
@@ -23,15 +26,28 @@ interface DeckWithStats extends Deck {
 }
 
 export const DecksView: React.FC = () => {
-  const { setCurrentView, setActiveDeckId, stagingCount } = useApp();
+  const { setCurrentView, setActiveDeckId, stagingCount, startReviseAll } = useApp();
   const [decks, setDecks] = useState<DeckWithStats[]>([]);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [seenCardsCount, setSeenCardsCount] = useState<number>(0);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [selectedDeckForNewNote, setSelectedDeckForNewNote] = useState<string | null>(null);
+  
+  // New Deck Modal
   const [isNewDeckModalOpen, setIsNewDeckModalOpen] = useState(false);
   const [newDeckName, setNewDeckName] = useState('');
   const [newDeckDesc, setNewDeckDesc] = useState('');
   const [newDeckCap, setNewDeckCap] = useState(15);
+
+  // Edit Deck Modal
+  const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
+  const [editDeckName, setEditDeckName] = useState('');
+  const [editDeckDesc, setEditDeckDesc] = useState('');
+  const [editDeckCap, setEditDeckCap] = useState(15);
+
+  // Revise All Modal
+  const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+  const [reviseBatchSize, setReviseBatchSize] = useState<number>(20);
 
   const loadData = useCallback(async () => {
     const allDecks = await db.decks.toArray();
@@ -47,6 +63,9 @@ export const DecksView: React.FC = () => {
 
     setDecks(decksWithStats);
 
+    const seenCount = await getSeenCardsCount();
+    setSeenCardsCount(seenCount);
+
     // Get 6 most recently added notes
     const recent = await db.notes.orderBy('created_at').reverse().limit(6).toArray();
     setRecentNotes(recent);
@@ -59,6 +78,11 @@ export const DecksView: React.FC = () => {
   const handleStartStudy = (deckId: string) => {
     setActiveDeckId(deckId);
     setCurrentView('study');
+  };
+
+  const handleStartRevise = (size: number) => {
+    setIsReviseModalOpen(false);
+    startReviseAll(size);
   };
 
   const handleCreateDeck = async (e: React.FormEvent) => {
@@ -92,6 +116,34 @@ export const DecksView: React.FC = () => {
     await loadData();
   };
 
+  const openEditDeckModal = (deck: Deck) => {
+    setEditingDeck(deck);
+    setEditDeckName(deck.name);
+    setEditDeckDesc(deck.description || '');
+    setEditDeckCap(deck.new_cards_per_day || 15);
+  };
+
+  const handleUpdateDeck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDeck || !editDeckName.trim()) return;
+
+    await updateDeck(editingDeck.id, {
+      name: editDeckName.trim(),
+      description: editDeckDesc.trim() || undefined,
+      new_cards_per_day: editDeckCap || 15,
+    });
+
+    setEditingDeck(null);
+    await loadData();
+  };
+
+  const handleDeleteDeck = async (deck: Deck) => {
+    if (window.confirm(`Are you sure you want to delete deck "${deck.name}" and all of its cards? This deletion will sync across your devices.`)) {
+      await deleteDeck(deck.id);
+      await loadData();
+    }
+  };
+
   const openAddNoteModal = (deckId?: string) => {
     setSelectedDeckForNewNote(deckId || null);
     setIsNoteModalOpen(true);
@@ -115,7 +167,24 @@ export const DecksView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Revise All Button */}
+          <button
+            onClick={() => {
+              setReviseBatchSize(seenCardsCount > 0 ? Math.min(20, seenCardsCount) : 20);
+              setIsReviseModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-leaf/40 bg-leaf/10 dark:bg-leaf/20 font-semibold text-sm text-forest dark:text-alabaster hover:bg-leaf/25 transition-all shadow-sm"
+          >
+            <Shuffle className="w-4 h-4 text-leaf" />
+            <span>Revise All</span>
+            {seenCardsCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-leaf text-forest tabular-nums">
+                {seenCardsCount}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setIsNewDeckModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 font-medium text-sm text-forest dark:text-alabaster hover:bg-forest/5 dark:hover:bg-alabaster/5 transition-colors"
@@ -187,13 +256,29 @@ export const DecksView: React.FC = () => {
                       <h3 className="font-display font-bold text-lg text-forest dark:text-alabaster line-clamp-1">
                         {deck.name}
                       </h3>
-                      <button
-                        onClick={() => openAddNoteModal(deck.id)}
-                        title="Add word directly to this deck"
-                        className="p-1 rounded-lg text-forest/60 dark:text-alabaster/60 hover:text-leaf transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => openAddNoteModal(deck.id)}
+                          title="Add word directly to this deck"
+                          className="p-1.5 rounded-lg text-forest/60 dark:text-alabaster/60 hover:text-leaf hover:bg-forest/5 dark:hover:bg-alabaster/5 transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openEditDeckModal(deck)}
+                          title="Edit deck settings"
+                          className="p-1.5 rounded-lg text-forest/60 dark:text-alabaster/60 hover:text-leaf hover:bg-forest/5 dark:hover:bg-alabaster/5 transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDeck(deck)}
+                          title="Delete deck"
+                          className="p-1.5 rounded-lg text-forest/60 dark:text-alabaster/60 hover:text-coral hover:bg-forest/5 dark:hover:bg-alabaster/5 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {deck.description && (
@@ -368,6 +453,158 @@ export const DecksView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Deck Modal */}
+      {editingDeck && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/70 backdrop-blur-sm overflow-y-auto safe-top safe-bottom">
+          <div className="w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl p-6 shadow-2xl border border-forest/15 dark:border-alabaster/10 my-auto">
+            <h3 className="font-display font-bold text-xl mb-4">Edit Deck Settings</h3>
+            <form onSubmit={handleUpdateDeck} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-1">
+                  Deck Name *
+                </label>
+                <input
+                  type="text"
+                  value={editDeckName}
+                  onChange={(e) => setEditDeckName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 bg-white dark:bg-forest text-sm text-forest dark:text-alabaster focus:outline-none focus:ring-2 focus:ring-leaf font-display font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editDeckDesc}
+                  onChange={(e) => setEditDeckDesc(e.target.value)}
+                  rows={2}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 bg-white dark:bg-forest text-sm text-forest dark:text-alabaster focus:outline-none focus:ring-2 focus:ring-leaf font-sans resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-1">
+                  Daily New Cards Cap
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={editDeckCap}
+                  onChange={(e) => setEditDeckCap(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-forest/20 dark:border-alabaster/20 bg-white dark:bg-forest text-sm text-forest dark:text-alabaster focus:outline-none focus:ring-2 focus:ring-leaf font-sans tabular-nums"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingDeck(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest/10 dark:hover:bg-alabaster/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editDeckName.trim()}
+                  className="px-5 py-2 rounded-xl bg-leaf text-forest font-semibold text-sm hover:bg-leaf-hover disabled:opacity-50"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Revise All Modal */}
+      {isReviseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest/70 backdrop-blur-sm overflow-y-auto safe-top safe-bottom">
+          <div className="w-full max-w-md bg-alabaster dark:bg-forest-panel text-forest dark:text-alabaster rounded-2xl p-6 shadow-2xl border border-forest/15 dark:border-alabaster/10 my-auto">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-leaf/20 text-leaf flex items-center justify-center shrink-0">
+                <Shuffle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-xl">Revise All Cards</h3>
+                <p className="text-xs text-forest/70 dark:text-alabaster/70 font-sans">
+                  Randomized flashcard practice across all active decks
+                </p>
+              </div>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <p className="text-xs text-forest/80 dark:text-alabaster/80 font-sans leading-relaxed">
+                Pulls random flashcards that you have already seen in your study sessions. Perfect for testing retention and refreshing your memory anytime.
+              </p>
+
+              <div className="p-3.5 rounded-xl bg-forest/5 dark:bg-alabaster/5 border border-forest/10 dark:border-alabaster/10 flex items-center justify-between">
+                <span className="text-xs font-medium text-forest/70 dark:text-alabaster/70">
+                  Total Seen Cards Available:
+                </span>
+                <span className="text-sm font-bold text-leaf tabular-nums">
+                  {seenCardsCount} cards
+                </span>
+              </div>
+
+              {seenCardsCount === 0 ? (
+                <div className="p-4 rounded-xl bg-coral/10 border border-coral/20 text-coral text-xs leading-relaxed">
+                  You haven't reviewed any cards yet. Study some cards from your decks first, and they will become available here for revision!
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-forest/70 dark:text-alabaster/70 mb-2">
+                    Select Session Size
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[10, 20, 50, seenCardsCount].map((size, idx) => {
+                      const isAll = idx === 3;
+                      const label = isAll ? `All (${seenCardsCount})` : `${size}`;
+                      const isSelected = reviseBatchSize === size;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setReviseBatchSize(size)}
+                          className={`py-2 px-1 text-center rounded-xl text-xs font-semibold transition-all ${
+                            isSelected
+                              ? 'bg-leaf text-forest shadow-sm'
+                              : 'bg-white dark:bg-forest border border-forest/15 dark:border-alabaster/10 text-forest dark:text-alabaster hover:border-leaf/50'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsReviseModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest/10 dark:hover:bg-alabaster/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={seenCardsCount === 0}
+                onClick={() => handleStartRevise(reviseBatchSize)}
+                className="px-5 py-2.5 rounded-xl bg-leaf text-forest font-semibold text-sm hover:bg-leaf-hover disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-2"
+              >
+                <Shuffle className="w-4 h-4" />
+                <span>Start Revision {seenCardsCount > 0 ? `(${Math.min(reviseBatchSize, seenCardsCount)})` : ''}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

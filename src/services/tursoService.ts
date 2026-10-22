@@ -117,6 +117,19 @@ export async function initTursoSchema(client: Client): Promise<void> {
   }
 }
 
+async function upsertTursoRecord(client: Client, table: string, record: any): Promise<void> {
+  const keys = Object.keys(record);
+  const placeholders = keys.map(() => '?').join(', ');
+  const updateAssignments = keys.map(k => `${k} = excluded.${k}`).join(', ');
+  const sql = `
+    INSERT INTO ${table} (${keys.join(', ')})
+    VALUES (${placeholders})
+    ON CONFLICT(id) DO UPDATE SET ${updateAssignments}
+  `;
+  const args = keys.map(k => record[k] ?? null);
+  await client.execute({ sql, args });
+}
+
 export async function syncWithTurso(): Promise<{
   success: boolean;
   pushed: number;
@@ -173,18 +186,7 @@ export async function syncWithTurso(): Promise<{
           continue;
         }
 
-        const keys = Object.keys(payload);
-        const placeholders = keys.map(() => '?').join(', ');
-        const updateAssignments = keys.map(k => `${k} = excluded.${k}`).join(', ');
-
-        const sql = `
-          INSERT INTO ${table} (${keys.join(', ')})
-          VALUES (${placeholders})
-          ON CONFLICT(id) DO UPDATE SET ${updateAssignments}
-        `;
-        const args = keys.map(k => payload[k] ?? null);
-
-        await tursoClient.execute({ sql, args });
+        await upsertTursoRecord(tursoClient, table, payload);
 
         // If newly inserted/updated after a previous tombstone, clear the tombstone
         if (localTombstone) {
@@ -200,11 +202,15 @@ export async function syncWithTurso(): Promise<{
       pushedCount++;
     }
 
-    // 2. Pull remote tombstones and apply deletions to local IndexedDB
+    // 2. Sync tombstones bidirectionally
     let deletedCount = 0;
+
+    // Pull remote tombstones and apply deletions to local IndexedDB
     const remoteTombstones = await tursoClient.execute('SELECT * FROM sync_tombstones');
+    const remoteTombstoneMap = new Map<string, string>();
     for (const row of remoteTombstones.rows) {
       const ts = row as unknown as Tombstone;
+      remoteTombstoneMap.set(ts.id, ts.deleted_at);
       await db.tombstones.put(ts);
 
       if (ts.table_name === 'notes') {
@@ -239,14 +245,24 @@ export async function syncWithTurso(): Promise<{
       }
     }
 
-    // 3. Pull remote records and reconcile missing rows
+    // Push local tombstones that Turso doesn't have yet
+    const localTombstones = await db.tombstones.toArray();
+    for (const ts of localTombstones) {
+      if (!remoteTombstoneMap.has(ts.id)) {
+        await tursoClient.execute({
+          sql: `
+            INSERT INTO sync_tombstones (id, table_name, record_id, deleted_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at
+          `,
+          args: [ts.id, ts.table_name, ts.record_id, ts.deleted_at]
+        });
+        remoteTombstoneMap.set(ts.id, ts.deleted_at);
+      }
+    }
+
+    // 3. Pull remote records from Turso into local IndexedDB
     let pulledCount = 0;
-    const remainingQueue = await db.sync_queue.toArray();
-    const pendingDeckIds = new Set(remainingQueue.filter(q => q.table === 'decks').map(q => q.record_id));
-    const pendingNoteIds = new Set(remainingQueue.filter(q => q.table === 'notes').map(q => q.record_id));
-    const pendingCardIds = new Set(remainingQueue.filter(q => q.table === 'cards').map(q => q.record_id));
-    const pendingExampleIds = new Set(remainingQueue.filter(q => q.table === 'examples').map(q => q.record_id));
-    const pendingLogIds = new Set(remainingQueue.filter(q => q.table === 'review_logs').map(q => q.record_id));
 
     // Pull decks
     const remoteDecks = await tursoClient.execute('SELECT * FROM decks');
@@ -262,13 +278,6 @@ export async function syncWithTurso(): Promise<{
       if (!local || new Date(deck.updated_at) > new Date(local.updated_at)) {
         await db.decks.put(deck);
         pulledCount++;
-      }
-    }
-    const localDecks = await db.decks.toArray();
-    for (const local of localDecks) {
-      if (!remoteDeckIds.has(local.id) && !pendingDeckIds.has(local.id) && local.is_staging !== 1) {
-        await db.decks.delete(local.id);
-        deletedCount++;
       }
     }
 
@@ -288,19 +297,6 @@ export async function syncWithTurso(): Promise<{
         pulledCount++;
       }
     }
-    const localNotes = await db.notes.toArray();
-    for (const local of localNotes) {
-      if (!remoteNoteIds.has(local.id) && !pendingNoteIds.has(local.id)) {
-        await db.notes.delete(local.id);
-        const cards = await db.cards.where('note_id').equals(local.id).toArray();
-        for (const c of cards) {
-          await db.cards.delete(c.id);
-          await db.review_logs.where('card_id').equals(c.id).delete();
-        }
-        await db.examples.where('note_id').equals(local.id).delete();
-        deletedCount++;
-      }
-    }
 
     // Pull examples
     const remoteExamples = await tursoClient.execute('SELECT * FROM examples');
@@ -312,12 +308,6 @@ export async function syncWithTurso(): Promise<{
       if (tombstone) continue;
       await db.examples.put(example);
       pulledCount++;
-    }
-    const localExamples = await db.examples.toArray();
-    for (const local of localExamples) {
-      if (!remoteExampleIds.has(local.id) && !pendingExampleIds.has(local.id)) {
-        await db.examples.delete(local.id);
-      }
     }
 
     // Pull cards
@@ -336,14 +326,6 @@ export async function syncWithTurso(): Promise<{
         pulledCount++;
       }
     }
-    const localCards = await db.cards.toArray();
-    for (const local of localCards) {
-      if (!remoteCardIds.has(local.id) && !pendingCardIds.has(local.id)) {
-        await db.cards.delete(local.id);
-        await db.review_logs.where('card_id').equals(local.id).delete();
-        deletedCount++;
-      }
-    }
 
     // Pull review logs
     const remoteLogs = await tursoClient.execute('SELECT * FROM review_logs');
@@ -355,10 +337,61 @@ export async function syncWithTurso(): Promise<{
       if (tombstone) continue;
       await db.review_logs.put(log);
     }
+
+    // 4. Push any local records that don't exist on remote and have not been deleted
+    // This ensures local decks, notes, cards created before sync or while offline are safely uploaded
+    const localDecks = await db.decks.toArray();
+    for (const local of localDecks) {
+      if (!remoteDeckIds.has(local.id)) {
+        const tombstone = await db.tombstones.get(`decks_${local.id}`);
+        if (!tombstone) {
+          await upsertTursoRecord(tursoClient, 'decks', local);
+          pushedCount++;
+        }
+      }
+    }
+
+    const localNotes = await db.notes.toArray();
+    for (const local of localNotes) {
+      if (!remoteNoteIds.has(local.id)) {
+        const tombstone = await db.tombstones.get(`notes_${local.id}`);
+        if (!tombstone) {
+          await upsertTursoRecord(tursoClient, 'notes', local);
+          pushedCount++;
+        }
+      }
+    }
+
+    const localExamples = await db.examples.toArray();
+    for (const local of localExamples) {
+      if (!remoteExampleIds.has(local.id)) {
+        const tombstone = await db.tombstones.get(`examples_${local.id}`);
+        if (!tombstone) {
+          await upsertTursoRecord(tursoClient, 'examples', local);
+          pushedCount++;
+        }
+      }
+    }
+
+    const localCards = await db.cards.toArray();
+    for (const local of localCards) {
+      if (!remoteCardIds.has(local.id)) {
+        const tombstone = await db.tombstones.get(`cards_${local.id}`);
+        if (!tombstone) {
+          await upsertTursoRecord(tursoClient, 'cards', local);
+          pushedCount++;
+        }
+      }
+    }
+
     const localLogs = await db.review_logs.toArray();
     for (const local of localLogs) {
-      if (!remoteLogIds.has(local.id) && !pendingLogIds.has(local.id)) {
-        await db.review_logs.delete(local.id);
+      if (!remoteLogIds.has(local.id)) {
+        const tombstone = await db.tombstones.get(`review_logs_${local.id}`);
+        if (!tombstone) {
+          await upsertTursoRecord(tursoClient, 'review_logs', local);
+          pushedCount++;
+        }
       }
     }
 
