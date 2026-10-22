@@ -225,3 +225,4 @@ Ricordo uses a zero-backend Web Crypto encryption vault that syncs with a free s
 ---
 
 *Happy learning with Ricordo!*
+
